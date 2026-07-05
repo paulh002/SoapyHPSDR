@@ -160,11 +160,13 @@ void SoapyHPSDR::controlHPSDR(uint32_t command, uint32_t command_data) {
 	
 	// 2. Payload (C0 to C4)
 	packet[11] = command; // Sub-command (0x00 for Freq, 0x01 for Rate)
-
+	packet[523] = command; // Sub-command (0x00 for Freq, 0x01 for Rate)
 	// Convert the 32-bit parameter to Network Byte Order (Big Endian)
 	uint32_t net_param = htonl(command_data);
 	memcpy(&packet[12], &net_param, 4);
+	memcpy(&packet[524], &net_param, 4);
 	printf("C0 %x C1 %x C2 %x C3 %x\n", packet[12], packet[13], packet[14], packet[15]);
+
 	// 3. Send the 9-byte UDP packet
 	ssize_t sent = send(data_socket, packet, sizeof(packet), 0);
 	if (sent < 0)
