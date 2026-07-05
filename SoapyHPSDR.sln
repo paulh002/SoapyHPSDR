@@ -1,0 +1,28 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.14.37411.7
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{803FD0C6-D64E-4E16-9DC3-1DAEC859A3D2}") = "SoapyHPSDR", "SoapyHPSDR.vgdbcmake", "{E4F7556F-28FF-4456-B3FB-7BB19430042C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|VisualGDB = Debug|VisualGDB
+		MinSizeRel|VisualGDB = MinSizeRel|VisualGDB
+		Release|VisualGDB = Release|VisualGDB
+		RelWithDebInfo|VisualGDB = RelWithDebInfo|VisualGDB
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{E4F7556F-28FF-4456-B3FB-7BB19430042C}.Debug|VisualGDB.ActiveCfg = Debug|VisualGDB
+		{E4F7556F-28FF-4456-B3FB-7BB19430042C}.Debug|VisualGDB.Build.0 = Debug|VisualGDB
+		{E4F7556F-28FF-4456-B3FB-7BB19430042C}.MinSizeRel|VisualGDB.ActiveCfg = MinSizeRel|VisualGDB
+		{E4F7556F-28FF-4456-B3FB-7BB19430042C}.MinSizeRel|VisualGDB.Build.0 = MinSizeRel|VisualGDB
+		{E4F7556F-28FF-4456-B3FB-7BB19430042C}.Release|VisualGDB.ActiveCfg = Release|VisualGDB
+		{E4F7556F-28FF-4456-B3FB-7BB19430042C}.Release|VisualGDB.Build.0 = Release|VisualGDB
+		{E4F7556F-28FF-4456-B3FB-7BB19430042C}.RelWithDebInfo|VisualGDB.ActiveCfg = RelWithDebInfo|VisualGDB
+		{E4F7556F-28FF-4456-B3FB-7BB19430042C}.RelWithDebInfo|VisualGDB.Build.0 = RelWithDebInfo|VisualGDB
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
