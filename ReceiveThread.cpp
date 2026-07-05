@@ -69,9 +69,10 @@ void ReceiveThread::operator()()
 			last_seq_num = sequence;
 			stoptReadTime = std::chrono::high_resolution_clock::now();
 			timePassed = std::chrono::duration_cast<std::chrono::microseconds>(stoptReadTime - startTime);
+
+
 			if (stream_active && bytes_received == PACKETSIZE)
 			{
-				//printf("Stream active Bytes received %d sequence %d ep %d micro sec %ld\n", bytes_received, sequence, (int)(buffer[3] & 0xFF), timePassed.count());
 				if ((buffer[3] & 0xFF) == 6)
 				{
 					process_input_buffer(&buffer[8]);

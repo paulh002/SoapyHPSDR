@@ -51,7 +51,7 @@
 	packet[2] = 0x01; // Command Type: Control
 	packet[3] = 0x02; //
 
-	packet[4] = 0x01; //
+	packet[4] = 0x00; //
 	packet[5] = 0x00; // EP
 
 	uint32_t net_sequence = htonl(0);
@@ -59,14 +59,27 @@
 
 	// 2. Payload (C0 to C4)
 	packet[11] = command; // Sub-command (0x00 for Freq, 0x01 for Rate)
+	packet[523] = command; // Sub-command (0x00 for Freq, 0x01 for Rate)
 	if (sample_rate < 48001.0)
+	{
 		packet[12] = 0x00;
+		packet[524] = 0x00;
+	}
 	if (sample_rate > 48000.0 && sample_rate < 96001.0)
+	{
 		packet[12] = 0x01;
+		packet[524] = 0x01;
+	}
 	if (sample_rate > 96000.0 && sample_rate < 192001.0)
+	{
 		packet[12] = 0x02;
+		packet[524] = 0x02;
+	}
 	if (sample_rate > 192000.0)
+	{
 		packet[12] = 0x03;
+		packet[524] = 0x03;
+	}
 	printf("SetSamplerate C0 %x C1 %x C2 %x C3 %x\n", packet[11], packet[12], packet[13], packet[14]);
 	// 3. Send the 9-byte UDP packet
 	ssize_t sent = send(data_socket, packet, sizeof(packet), 0);
