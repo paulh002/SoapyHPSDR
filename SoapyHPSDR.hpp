@@ -170,8 +170,8 @@ class SoapyHPSDR : public SoapySDR::Device
 	int data_socket;
 	int tcp_socket;
 	double sample_rate;
-	long rx_frequency;
-	long tx_frequency;
+	uint32_t rx_frequency;
+	uint32_t tx_frequency;
 	int no_channels;
 	std::mutex send_command;
 	std::vector<sdr_stream *> streams;
@@ -181,8 +181,14 @@ class SoapyHPSDR : public SoapySDR::Device
 	uint32_t drive;
 	std::atomic<uint32_t> sequence;
 	DataBuffer<std::complex<float>> rx_databuffer;
-	std::array<char, PACKETSIZE> tx_databuffer;
+	std::vector<char> tx_databuffer;
+	uint32_t send_sequence;
+	uint32_t num_hpsdr_receivers;
+	int ibuf;
+	
 
 	void startDataStream(void);
 	void stopDataStream(void);
+	int transmit_buffer();
+	char EncodeSampleRate();
 };

@@ -36,7 +36,10 @@ SoapyHPSDR::SoapyHPSDR(const SoapySDR::Kwargs &args)
 	no_channels = 1;
 	data_socket = -1;
 	sequence = 0;
+	send_sequence = 0;
+	num_hpsdr_receivers = 1;
 	rx_frequency = 7074000;
+	tx_databuffer.resize(PACKETSIZE);
 
 	if (args.count("addr"))
 		_addr = args.at("addr");
@@ -271,11 +274,11 @@ std::vector<double> SoapyHPSDR::listSampleRates( const int direction, const size
 		options.push_back(0.096e6);
 		options.push_back(0.192e6);
 		options.push_back(0.384e6);
-		options.push_back(0.768e6);
-		options.push_back(1.536e6);
+		//options.push_back(0.768e6);
+		//options.push_back(1.536e6);
 	}
 	if (direction == SOAPY_SDR_TX) {
-		options.push_back(0.048e6);  
+		options.push_back(0.048e6);
 	}
 	return(options);
 }
@@ -357,15 +360,23 @@ void SoapyHPSDR::setGain( const int direction, const size_t channel, const doubl
 		if (mox)
 			command = 0x15;
 		else
-			command = 0x14;
+			command = 0x14;//14
 		command_data = (0x40 | (((uint32_t)value + 12) & 0x3F));
 	}
 	
 	if(direction==SOAPY_SDR_TX) 
 	{ // 0 -7 TX RF gain
+		drive = value;
+		command_data = (uint32_t)value;
+		if (value > 15)
+			command_data = 15;
+		if (value < 0.0)
+			command_data = 0;
+		command_data = command_data << 28;
+		command = 0x13;
+		this->SoapyHPSDR::controlHPSDR(command, command_data);
 	}
 	
-	//this->SoapyHPSDR::controlHPSDR(command, command_data);
 }
 
 /*******************************************************************
@@ -394,7 +405,7 @@ void SoapyHPSDR::setFrequency( const int direction, const size_t channel,  const
 		tx_frequency = frequency;
 	}
 
-	uint32_t command_data = (uint32_t) frequency;
+	uint32_t command_data = frequency;
 
 	//if (!mox)
 		this->SoapyHPSDR::controlHPSDR(command, command_data);

@@ -24,7 +24,27 @@
 #include "SoapyHPSDR.hpp"
 #include "ReceiveThread.hpp"
 
- void SoapyHPSDR::setSampleRate( const int direction, const size_t channel, const double rate ) {
+#define HEADER1 0
+#define HEADER2 1
+#define HEADER3 2
+#define EP 3
+
+#define SEQ1 4
+#define SEQ2 5
+#define SEQ3 5
+#define SEQ4 6
+
+#define SYNC1 7
+#define SYNC2 8
+
+#define C0 11
+#define C1 12
+#define C2 13
+#define C3 14
+#define C4 15
+
+
+void SoapyHPSDR::setSampleRate( const int direction, const size_t channel, const double rate ) {
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::setSampleRate called");
 
 	uint8_t packet[PACKETSIZE];
@@ -62,23 +82,23 @@
 	packet[523] = command; // Sub-command (0x00 for Freq, 0x01 for Rate)
 	if (sample_rate < 48001.0)
 	{
-		packet[12] = 0x00;
-		packet[524] = 0x00;
+		packet[12] = EncodeSampleRate();
+		packet[524] = EncodeSampleRate();
 	}
 	if (sample_rate > 48000.0 && sample_rate < 96001.0)
 	{
-		packet[12] = 0x01;
-		packet[524] = 0x01;
+		packet[12] = EncodeSampleRate();
+		packet[524] = EncodeSampleRate();
 	}
 	if (sample_rate > 96000.0 && sample_rate < 192001.0)
 	{
-		packet[12] = 0x02;
-		packet[524] = 0x02;
+		packet[12] = EncodeSampleRate();
+		packet[524] = EncodeSampleRate();
 	}
 	if (sample_rate > 192000.0)
 	{
-		packet[12] = 0x03;
-		packet[524] = 0x03;
+		packet[12] = EncodeSampleRate();
+		packet[524] = EncodeSampleRate();
 	}
 	printf("SetSamplerate C0 %x C1 %x C2 %x C3 %x\n", packet[11], packet[12], packet[13], packet[14]);
 	// 3. Send the 9-byte UDP packet
@@ -87,6 +107,28 @@
 	{
 		perror("Error sending Metis command");
 	}
+}
+
+char SoapyHPSDR::EncodeSampleRate()
+{
+	char c = 0x00;
+	if (sample_rate < 48001.0)
+	{
+		c= 0x00;
+	}
+	if (sample_rate > 48000.0 && sample_rate < 96001.0)
+	{
+		c = 0x00;;
+	}
+	if (sample_rate > 96000.0 && sample_rate < 192001.0)
+	{
+		c = 0x02;
+	}
+	if (sample_rate > 192000.0)
+	{
+		c = 0x03;
+	}
+	return c;
 }
 
 SoapySDR::RangeList SoapyHPSDR::getSampleRateRange(const int direction, const size_t channel) const 
@@ -158,16 +200,14 @@ SoapySDR::Stream *SoapyHPSDR::setupStream(
 	//check the format
 	sdr_stream *ptr;
 	ptr = new sdr_stream(direction);
-
+	if (direction == SOAPY_SDR_TX)
+	{
+		ibuf = 16; // skip header
+		send_sequence = 0;
+	}
 	if (format == SOAPY_SDR_CF32) {
 		SoapySDR_log(SOAPY_SDR_INFO, "Using format CF32.");
 		ptr->set_stream_format(HPSDR_SDR_CF32);
-		mox = true;
-	}
-	else if(format == SOAPY_SDR_CS16 && direction == SOAPY_SDR_TX)
-	{
-		SoapySDR_log(SOAPY_SDR_INFO, "Using format CS16.");
-		ptr->set_stream_format(HPSDR_SDR_CS16);
 		mox = true;
 	}
 	else
@@ -247,41 +287,93 @@ int SoapyHPSDR::readStream(
 
 int SoapyHPSDR::writeStream(SoapySDR::Stream *stream, const void * const *buffs, const size_t numElems, int &flags, const long long timeNs, const long timeoutUs)
 {
-	int iq = 0, ibuf = 8; 
+	int iq = 0; 
 	size_t ret = -1;
-	int nr_samples = numElems / PACKETSIZE;
-	int maxElements = 2 * PACKETSIZE;
+	int nr_samples = 126;
 
 	void const		*buff_base = buffs[0];
 	float			*target_buffer = (float *) buff_base;
 	sdr_stream *ptr = (sdr_stream *)stream;
 
-	nr_samples = numElems;
-	if (numElems > maxElements)
-		nr_samples = maxElements;
-
+	// LEFT_SAMPLE_HI, LEFT_SAMPLE_MID, LEFT_SAMPLE_LOW, RIGHT_SAMPLE_HI, RIGHT_SAMPLE_MID, RIGHT_SAMPLE_LOW, MIC_SAMPLE_HI, MIC_SAMPLE_LOW
 	if (ptr->get_stream_format() == HPSDR_SDR_CF32)
 	{
 		for (int ii = 0; ii < nr_samples; ii++)
 		{
-			const float gain = 8388608.0f;
+			const float gain = 32767.0; // 8388608.0f;
 			int isample = target_buffer[iq] >= 0.0 ? (long)floor(target_buffer[iq] * gain + 0.5) : (long)ceil(target_buffer[iq] * gain - 0.5);
 			int qsample = target_buffer[iq + 1] >= 0.0 ? (long)floor(target_buffer[iq + 1] * gain + 0.5) : (long)ceil(target_buffer[iq + 1] * gain - 0.5);
 			qsample = qsample * -1;
 			//printf("nr_samples %d sample: %d %d \n", iq, isample,qsample );
 
-			tx_databuffer.at(ibuf++) = isample >> 16;
-			tx_databuffer.at(ibuf++) = (isample & 0xFF00) >> 8;
+			tx_databuffer.at(ibuf++) = 0; // tone sample
+			tx_databuffer.at(ibuf++) = 0; // tone sample
+			tx_databuffer.at(ibuf++) = 0; // tone sample
+			tx_databuffer.at(ibuf++) = 0; // tone sample
+			tx_databuffer.at(ibuf++) = isample >> 8;
 			tx_databuffer.at(ibuf++) = isample & 0xFF;
-			tx_databuffer.at(ibuf++) = qsample >> 16;
-			tx_databuffer.at(ibuf++) = (qsample & 0xFF00) >> 8;
+			tx_databuffer.at(ibuf++) = qsample >> 8;
 			tx_databuffer.at(ibuf++) = qsample & 0xFF;
-			tx_databuffer.at(ibuf++) = 0; // mic sample
-			tx_databuffer.at(ibuf++) = 0; // mic sample
-			
+			if (ibuf == 522)
+				ibuf += 6;
+			if (ibuf == PACKETSIZE)
+			{
+				ibuf = 16;
+				transmit_buffer();
+			}
 			iq++;
 			iq++;
 		}
 	}
 	return nr_samples;
+}
+
+int SoapyHPSDR::transmit_buffer()
+{
+	tx_databuffer.at(HEADER1) = 0xEF; // Sync 1
+	tx_databuffer.at(HEADER2) = 0xFE; // Sync 2
+	tx_databuffer.at(HEADER3) = 0x01; // Command Type: Control
+	tx_databuffer.at(EP) = 0x02; // Command Type: Control
+	tx_databuffer.at(SEQ1) = 0x00; // Command Type: Control
+	tx_databuffer.at(SEQ2) = 0x00; // Command Type: Control
+
+	uint32_t net_sequence = htonl(send_sequence);
+	std::memcpy(tx_databuffer.data() + SEQ3, &net_sequence, sizeof(net_sequence));
+	send_sequence++;
+	
+	tx_databuffer.at(C0) = 0x01; // Mox
+	tx_databuffer.at(C1) = EncodeSampleRate(); //
+	tx_databuffer.at(C2) = 0x00; // 
+	tx_databuffer.at(C3) = 0x00; // 
+	tx_databuffer.at(C4) = 0x04; // duplex
+	tx_databuffer.at(C4) = tx_databuffer.at(C4) | (num_hpsdr_receivers - 1) << 3;
+
+	//tx_databuffer.at(HEADER1 + 528) = 0xEF; // Sync 1
+	//tx_databuffer.at(HEADER2 + 528) = 0xFE; // Sync 2
+	//tx_databuffer.at(HEADER3 + 528) = 0x01; // Command Type: Control
+	//tx_databuffer.at(SEQ1 + 528) = 0x00;		  // Sequence
+	//tx_databuffer.at(SEQ2 + 528) = 0x00;		  //
+	//tx_databuffer.at(SEQ3 + 528) = 0x00;		  // Sequence
+	//tx_databuffer.at(SEQ4 + 528) = 0x00;		  //
+
+	tx_databuffer.at(523) = 0x01; // Mox
+	tx_databuffer.at(524) = EncodeSampleRate();
+	tx_databuffer.at(525) = 0x00;
+	tx_databuffer.at(526) = 0x00;
+	tx_databuffer.at(527) = 0x04;
+	//uint32_t net_param = htonl(tx_frequency);
+	//std::memcpy(tx_databuffer.data() + 540, &net_param, sizeof(net_param));
+
+	//tx_databuffer.at(C0 + 528) = 0x03; // Command TX frequency
+	//tx_databuffer.at(C4 + 512) |= 0x04; // duplex
+	errno = 0; // Clear it right before the call!
+	ssize_t sent = send(data_socket, tx_databuffer.data(), PACKETSIZE, 0);
+	if (sent < 0 || sent != PACKETSIZE)
+	{
+		char str[128];
+		sprintf(str, "SoapyHPSDR Error sending data: %s (errno: %d)",
+				strerror(errno), errno);
+		SoapySDR_log(SOAPY_SDR_ERROR, str);
+	}
+	return 0;
 }
