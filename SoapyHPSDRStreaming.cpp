@@ -48,19 +48,17 @@ void SoapyHPSDR::setSampleRate( const int direction, const size_t channel, const
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::setSampleRate called");
 
 	uint8_t packet[PACKETSIZE];
-	int irate = floor(rate);
-	uint32_t	ucom =0x4;
 	uint32_t	command = 0;
-
-	sample_rate = rate;
 
 	if (direction == SOAPY_SDR_TX)
 	{
-		command = 0x00;
+		command = 0x01;
+		tx_samplerate = rate;
 	}
 	if (direction == SOAPY_SDR_RX)
 	{
-		command = 0x01;
+		command = 0x00;
+		rx_samplerate = rate;
 	}
 
 	// incase of transmit still the receive samplerate need to be send
@@ -80,25 +78,25 @@ void SoapyHPSDR::setSampleRate( const int direction, const size_t channel, const
 	// 2. Payload (C0 to C4)
 	packet[11] = command; // Sub-command (0x00 for Freq, 0x01 for Rate)
 	packet[523] = command; // Sub-command (0x00 for Freq, 0x01 for Rate)
-	if (sample_rate < 48001.0)
+	if (rate < 48001.0)
 	{
-		packet[12] = EncodeSampleRate();
-		packet[524] = EncodeSampleRate();
+		packet[12] = EncodeSampleRate(rate);
+		packet[524] = EncodeSampleRate(rate);
 	}
-	if (sample_rate > 48000.0 && sample_rate < 96001.0)
+	if (rate > 48000.0 && rate < 96001.0)
 	{
-		packet[12] = EncodeSampleRate();
-		packet[524] = EncodeSampleRate();
+		packet[12] = EncodeSampleRate(rate);
+		packet[524] = EncodeSampleRate(rate);
 	}
-	if (sample_rate > 96000.0 && sample_rate < 192001.0)
+	if (rate > 96000.0 && rate < 192001.0)
 	{
-		packet[12] = EncodeSampleRate();
-		packet[524] = EncodeSampleRate();
+		packet[12] = EncodeSampleRate(rate);
+		packet[524] = EncodeSampleRate(rate);
 	}
-	if (sample_rate > 192000.0)
+	if (rate > 192000.0)
 	{
-		packet[12] = EncodeSampleRate();
-		packet[524] = EncodeSampleRate();
+		packet[12] = EncodeSampleRate(rate);
+		packet[524] = EncodeSampleRate(rate);
 	}
 	printf("SetSamplerate C0 %x C1 %x C2 %x C3 %x\n", packet[11], packet[12], packet[13], packet[14]);
 	// 3. Send the 9-byte UDP packet
@@ -109,7 +107,7 @@ void SoapyHPSDR::setSampleRate( const int direction, const size_t channel, const
 	}
 }
 
-char SoapyHPSDR::EncodeSampleRate()
+char SoapyHPSDR::EncodeSampleRate(double sample_rate)
 {
 	char c = 0x00;
 	if (sample_rate < 48001.0)
@@ -217,8 +215,11 @@ SoapySDR::Stream *SoapyHPSDR::setupStream(
 	}
 
 	streams.push_back(ptr);
-	startDataStream();
-	SoapySDR_log(SOAPY_SDR_INFO, "Send receiver");
+	if (direction == SOAPY_SDR_RX)
+	{
+		startDataStream();
+		SoapySDR_log(SOAPY_SDR_INFO, "Send receiver");
+	}
 	ptr_rx_thread->SetStreamActive(true);
 	return (SoapySDR::Stream *)ptr;
 }
@@ -234,7 +235,7 @@ void SoapyHPSDR::closeStream(SoapySDR::Stream *stream)
 			if (((sdr_stream *)stream)->get_direction() == SOAPY_SDR_TX)
 			{	// switch off TX stream
 				mox = false;
-				setSampleRate(SOAPY_SDR_RX, 0, sample_rate);	
+				setSampleRate(SOAPY_SDR_RX, 0, rx_samplerate);	
 			}
 			delete ((sdr_stream *)stream);
 			streams.erase(streams.begin() + i);
@@ -304,8 +305,6 @@ int SoapyHPSDR::writeStream(SoapySDR::Stream *stream, const void * const *buffs,
 			int isample = target_buffer[iq] >= 0.0 ? (long)floor(target_buffer[iq] * gain + 0.5) : (long)ceil(target_buffer[iq] * gain - 0.5);
 			int qsample = target_buffer[iq + 1] >= 0.0 ? (long)floor(target_buffer[iq + 1] * gain + 0.5) : (long)ceil(target_buffer[iq + 1] * gain - 0.5);
 			qsample = qsample * -1;
-			//printf("nr_samples %d sample: %d %d \n", iq, isample,qsample );
-
 			tx_databuffer.at(ibuf++) = 0; // tone sample
 			tx_databuffer.at(ibuf++) = 0; // tone sample
 			tx_databuffer.at(ibuf++) = 0; // tone sample
@@ -342,30 +341,18 @@ int SoapyHPSDR::transmit_buffer()
 	send_sequence++;
 	
 	tx_databuffer.at(C0) = 0x01; // Mox
-	tx_databuffer.at(C1) = EncodeSampleRate(); //
+	tx_databuffer.at(C1) = EncodeSampleRate(tx_samplerate); //
 	tx_databuffer.at(C2) = 0x00; // 
 	tx_databuffer.at(C3) = 0x00; // 
 	tx_databuffer.at(C4) = 0x04; // duplex
 	tx_databuffer.at(C4) = tx_databuffer.at(C4) | (num_hpsdr_receivers - 1) << 3;
 
-	//tx_databuffer.at(HEADER1 + 528) = 0xEF; // Sync 1
-	//tx_databuffer.at(HEADER2 + 528) = 0xFE; // Sync 2
-	//tx_databuffer.at(HEADER3 + 528) = 0x01; // Command Type: Control
-	//tx_databuffer.at(SEQ1 + 528) = 0x00;		  // Sequence
-	//tx_databuffer.at(SEQ2 + 528) = 0x00;		  //
-	//tx_databuffer.at(SEQ3 + 528) = 0x00;		  // Sequence
-	//tx_databuffer.at(SEQ4 + 528) = 0x00;		  //
-
 	tx_databuffer.at(523) = 0x01; // Mox
-	tx_databuffer.at(524) = EncodeSampleRate();
+	tx_databuffer.at(524) = EncodeSampleRate(tx_samplerate);
 	tx_databuffer.at(525) = 0x00;
 	tx_databuffer.at(526) = 0x00;
 	tx_databuffer.at(527) = 0x04;
-	//uint32_t net_param = htonl(tx_frequency);
-	//std::memcpy(tx_databuffer.data() + 540, &net_param, sizeof(net_param));
 
-	//tx_databuffer.at(C0 + 528) = 0x03; // Command TX frequency
-	//tx_databuffer.at(C4 + 512) |= 0x04; // duplex
 	errno = 0; // Clear it right before the call!
 	ssize_t sent = send(data_socket, tx_databuffer.data(), PACKETSIZE, 0);
 	if (sent < 0 || sent != PACKETSIZE)

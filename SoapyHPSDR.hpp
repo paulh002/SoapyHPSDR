@@ -169,7 +169,8 @@ class SoapyHPSDR : public SoapySDR::Device
 	unsigned short _port;
 	int data_socket;
 	int tcp_socket;
-	double sample_rate;
+	double rx_samplerate;
+	double tx_samplerate;
 	uint32_t rx_frequency;
 	uint32_t tx_frequency;
 	int no_channels;
@@ -190,5 +191,5 @@ class SoapyHPSDR : public SoapySDR::Device
 	void startDataStream(void);
 	void stopDataStream(void);
 	int transmit_buffer();
-	char EncodeSampleRate();
+	char EncodeSampleRate(double sample_rate);
 };
