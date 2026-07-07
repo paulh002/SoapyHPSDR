@@ -47,9 +47,10 @@
 void SoapyHPSDR::setSampleRate( const int direction, const size_t channel, const double rate ) {
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::setSampleRate called");
 
-	uint8_t packet[PACKETSIZE];
-	uint32_t	command = 0;
+	std::vector<uint8_t> packet;
+	uint32_t command = 0;
 
+	packet.resize(PACKETSIZE, 0);
 	if (direction == SOAPY_SDR_TX)
 	{
 		command = 0x01;
@@ -60,9 +61,6 @@ void SoapyHPSDR::setSampleRate( const int direction, const size_t channel, const
 		command = 0x00;
 		rx_samplerate = rate;
 	}
-
-	// incase of transmit still the receive samplerate need to be send
-	memset(packet, 0, sizeof(packet));
 	// 1. Header 0x0201feef
 	packet[0] = 0xEF; // Sync 1
 	packet[1] = 0xFE; // Sync 2
@@ -73,7 +71,8 @@ void SoapyHPSDR::setSampleRate( const int direction, const size_t channel, const
 	packet[5] = 0x00; // EP
 
 	uint32_t net_sequence = htonl(0);
-	memcpy(&packet[6], &net_sequence, 4);
+	auto bytes = std::bit_cast<std::array<char, 4>>(net_sequence);
+	std::copy(bytes.begin(), bytes.end(), packet.begin() + 6);
 
 	// 2. Payload (C0 to C4)
 	packet[11] = command; // Sub-command (0x00 for Freq, 0x01 for Rate)
@@ -100,7 +99,7 @@ void SoapyHPSDR::setSampleRate( const int direction, const size_t channel, const
 	}
 	printf("SetSamplerate C0 %x C1 %x C2 %x C3 %x\n", packet[11], packet[12], packet[13], packet[14]);
 	// 3. Send the 9-byte UDP packet
-	ssize_t sent = send(data_socket, packet, sizeof(packet), 0);
+	ssize_t sent = send(data_socket, packet.data(), packet.size() * sizeof(uint8_t), 0);
 	if (sent < 0)
 	{
 		perror("Error sending Metis command");
