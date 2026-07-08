@@ -43,12 +43,12 @@
 #define C3 14
 #define C4 15
 
-
-void SoapyHPSDR::setSampleRate( const int direction, const size_t channel, const double rate ) {
+void SoapyHPSDR::setSampleRate(const int direction, const size_t channel, const double rate)
+{
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::setSampleRate called");
 
-	std::vector<uint8_t> packet;
-	uint32_t command = 0;
+	std::vector<char> packet;
+	uint8_t command = 0;
 
 	packet.resize(PACKETSIZE, 0);
 	if (direction == SOAPY_SDR_TX)
@@ -61,49 +61,7 @@ void SoapyHPSDR::setSampleRate( const int direction, const size_t channel, const
 		command = 0x00;
 		rx_samplerate = rate;
 	}
-	// 1. Header 0x0201feef
-	packet[0] = 0xEF; // Sync 1
-	packet[1] = 0xFE; // Sync 2
-	packet[2] = 0x01; // Command Type: Control
-	packet[3] = 0x02; //
-
-	packet[4] = 0x00; //
-	packet[5] = 0x00; // EP
-
-	uint32_t net_sequence = htonl(0);
-	auto bytes = std::bit_cast<std::array<char, 4>>(net_sequence);
-	std::copy(bytes.begin(), bytes.end(), packet.begin() + 6);
-
-	// 2. Payload (C0 to C4)
-	packet[11] = command; // Sub-command (0x00 for Freq, 0x01 for Rate)
-	packet[523] = command; // Sub-command (0x00 for Freq, 0x01 for Rate)
-	if (rate < 48001.0)
-	{
-		packet[12] = EncodeSampleRate(rate);
-		packet[524] = EncodeSampleRate(rate);
-	}
-	if (rate > 48000.0 && rate < 96001.0)
-	{
-		packet[12] = EncodeSampleRate(rate);
-		packet[524] = EncodeSampleRate(rate);
-	}
-	if (rate > 96000.0 && rate < 192001.0)
-	{
-		packet[12] = EncodeSampleRate(rate);
-		packet[524] = EncodeSampleRate(rate);
-	}
-	if (rate > 192000.0)
-	{
-		packet[12] = EncodeSampleRate(rate);
-		packet[524] = EncodeSampleRate(rate);
-	}
-	printf("SetSamplerate C0 %x C1 %x C2 %x C3 %x\n", packet[11], packet[12], packet[13], packet[14]);
-	// 3. Send the 9-byte UDP packet
-	ssize_t sent = send(data_socket, packet.data(), packet.size() * sizeof(uint8_t), 0);
-	if (sent < 0)
-	{
-		perror("Error sending Metis command");
-	}
+	transmit_buffer(packet, command, rate);
 }
 
 char SoapyHPSDR::EncodeSampleRate(double sample_rate)
@@ -148,8 +106,6 @@ std::vector<std::string> SoapyHPSDR::getStreamFormats(const int direction, const
 	std::vector<std::string> formats;
 
 	formats.push_back(SOAPY_SDR_CF32);
-	formats.push_back(SOAPY_SDR_CS16);
-
 	return formats;
 }
 
@@ -158,10 +114,10 @@ std::string SoapyHPSDR::getNativeStreamFormat(const int direction, const size_t 
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::getNativeStreamFormat called");
 	
 	if (direction == SOAPY_SDR_RX) {
-		fullScale = 2048; // RX expects 12 bit samples LSB aligned
+		fullScale = 32768; // RX expects 16 bit samples LSB aligned
 	}
 	else if (direction == SOAPY_SDR_TX) {
-		fullScale = 32768; // TX expects 12 bit samples MSB aligned
+		fullScale = 32768; // TX expects 16 bit samples MSB aligned
 	}
 	return SOAPY_SDR_CF32;
 }
@@ -172,10 +128,10 @@ SoapySDR::ArgInfoList SoapyHPSDR::getStreamArgsInfo(const int direction, const s
 	
 	SoapySDR::ArgInfo bufflenArg;
     bufflenArg.key = "bufflen";
-    bufflenArg.value = "64"; 
+    bufflenArg.value = "2016"; 
     bufflenArg.name = "Buffer Size";
-    bufflenArg.description = "Number of bytes per buffer, multiples of 512 only.";
-    bufflenArg.units = "bytes";
+	bufflenArg.description = "Number of Elements per buffer";
+    bufflenArg.units = "Elements";
     bufflenArg.type = SoapySDR::ArgInfo::INT;
 
     streamArgs.push_back(bufflenArg);
@@ -219,7 +175,7 @@ SoapySDR::Stream *SoapyHPSDR::setupStream(
 		startDataStream();
 		SoapySDR_log(SOAPY_SDR_INFO, "Send receiver");
 	}
-	ptr_rx_thread->SetStreamActive(true);
+	ptr_receive_thread->SetStreamActive(true);
 	return (SoapySDR::Stream *)ptr;
 }
 
@@ -317,7 +273,7 @@ int SoapyHPSDR::writeStream(SoapySDR::Stream *stream, const void * const *buffs,
 			if (ibuf == PACKETSIZE)
 			{
 				ibuf = 16;
-				transmit_buffer();
+				transmit_buffer(tx_databuffer, 0x01, tx_samplerate);
 			}
 			iq++;
 			iq++;
@@ -326,34 +282,34 @@ int SoapyHPSDR::writeStream(SoapySDR::Stream *stream, const void * const *buffs,
 	return nr_samples;
 }
 
-int SoapyHPSDR::transmit_buffer()
+int SoapyHPSDR::transmit_buffer(std::vector<char> &databuffer, char command, double samplerate)
 {
-	tx_databuffer.at(HEADER1) = 0xEF; // Sync 1
-	tx_databuffer.at(HEADER2) = 0xFE; // Sync 2
-	tx_databuffer.at(HEADER3) = 0x01; // Command Type: Control
-	tx_databuffer.at(EP) = 0x02; // Command Type: Control
-	tx_databuffer.at(SEQ1) = 0x00; // Command Type: Control
-	tx_databuffer.at(SEQ2) = 0x00; // Command Type: Control
+	databuffer.at(HEADER1) = 0xEF; // Sync 1
+	databuffer.at(HEADER2) = 0xFE; // Sync 2
+	databuffer.at(HEADER3) = 0x01; // Command Type: Control
+	databuffer.at(EP) = 0x02; // Command Type: Control
+	databuffer.at(SEQ1) = 0x00; // Command Type: Control
+	databuffer.at(SEQ2) = 0x00; // Command Type: Control
 
 	uint32_t net_sequence = htonl(send_sequence);
-	std::memcpy(tx_databuffer.data() + SEQ3, &net_sequence, sizeof(net_sequence));
+	std::memcpy(databuffer.data() + SEQ3, &net_sequence, sizeof(net_sequence));
 	send_sequence++;
-	
-	tx_databuffer.at(C0) = 0x01; // Mox
-	tx_databuffer.at(C1) = EncodeSampleRate(tx_samplerate); //
-	tx_databuffer.at(C2) = 0x00; // 
-	tx_databuffer.at(C3) = 0x00; // 
-	tx_databuffer.at(C4) = 0x04; // duplex
-	tx_databuffer.at(C4) = tx_databuffer.at(C4) | (num_hpsdr_receivers - 1) << 3;
 
-	tx_databuffer.at(523) = 0x01; // Mox
-	tx_databuffer.at(524) = EncodeSampleRate(tx_samplerate);
-	tx_databuffer.at(525) = 0x00;
-	tx_databuffer.at(526) = 0x00;
-	tx_databuffer.at(527) = 0x04;
+	databuffer.at(C0) = command;
+	databuffer.at(C1) = EncodeSampleRate(samplerate); //
+	databuffer.at(C2) = 0x00; // 
+	databuffer.at(C3) = 0x00; // 
+	databuffer.at(C4) = 0x04; // duplex
+	databuffer.at(C4) = databuffer.at(C4) | (num_hpsdr_receivers - 1) << 3;
+
+	databuffer.at(523) = command;
+	databuffer.at(524) = EncodeSampleRate(samplerate);
+	databuffer.at(525) = 0x00;
+	databuffer.at(526) = 0x00;
+	databuffer.at(527) = 0x04;
 
 	errno = 0; // Clear it right before the call!
-	ssize_t sent = send(data_socket, tx_databuffer.data(), PACKETSIZE, 0);
+	ssize_t sent = send(data_socket, databuffer.data(), PACKETSIZE, 0);
 	if (sent < 0 || sent != PACKETSIZE)
 	{
 		char str[128];

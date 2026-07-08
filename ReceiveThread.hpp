@@ -68,4 +68,4 @@ class ReceiveThread
 	SoapyHPSDR *device;
 };
 
-extern std::shared_ptr<ReceiveThread> ptr_rx_thread;
+extern std::shared_ptr<ReceiveThread> ptr_receive_thread;

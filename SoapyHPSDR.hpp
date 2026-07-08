@@ -186,10 +186,10 @@ class SoapyHPSDR : public SoapySDR::Device
 	uint32_t send_sequence;
 	uint32_t num_hpsdr_receivers;
 	int ibuf;
-	
 
+	void SendDiscovery(void);
 	void startDataStream(void);
 	void stopDataStream(void);
-	int transmit_buffer();
+	int transmit_buffer(std::vector<char> &databuffer, char command, double samplerate);
 	char EncodeSampleRate(double sample_rate);
 };

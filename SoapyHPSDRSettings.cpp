@@ -100,35 +100,11 @@ SoapyHPSDR::SoapyHPSDR(const SoapySDR::Kwargs &args)
 	SoapySDR_log(SOAPY_SDR_INFO, message);
 
 	ReceiveThread::create_receive_thread(data_socket, this);
-
-	// Discovery
-	char payload[60]{0};
-	payload[0] = 0xEF;
-	payload[1] = 0xFE;
-	payload[2] = 0x02;
-	payload[3] = 0x00;
-
-	if (send(data_socket, payload, 60, 0) < 0)
-	{
-		SoapySDR_log(SOAPY_SDR_ERROR, "SoapyHPSDR::SoapyHPSDR Error sending data");
-		close(data_socket);
-		return;
-	}
-	SoapySDR_log(SOAPY_SDR_INFO, "Send discovery");
+	SendDiscovery();
 	for(int i = 0; i < 1000; i++)
 	{
 		usleep(1000);
 	}
-	/*
-	setSampleRate(SOAPY_SDR_RX, 0, 48000);
-	setFrequency(SOAPY_SDR_RX, 0, 7074000);
-	SoapySDR::Stream *stream = setupStream(SOAPY_SDR_RX, SOAPY_SDR_CF32);
-	for (int i = 0; i < 1000; i++)
-	{
-		usleep(1000);
-	}
-	closeStream(stream);
-*/
 }
 
 SoapyHPSDR::~SoapyHPSDR(void)
@@ -136,6 +112,7 @@ SoapyHPSDR::~SoapyHPSDR(void)
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::SoapyHPSDR  destructor called");
 	for (auto con : streams)
 		delete (con);
+	ReceiveThread::destroy_receive_thread();
 	if (data_socket != 0)
 		close(data_socket);
 	//printf("databuffer size %d\n", databuffer.size());
@@ -180,6 +157,29 @@ void SoapyHPSDR::controlHPSDR(uint32_t command, uint32_t command_data) {
 	{
 		printf("Sent 9-byte Metis packet (C0=0x%02X, Param=0x%08X)\n", command, command_data);
 	}
+}
+
+void SoapyHPSDR::SendDiscovery(void)
+{
+	// Discovery
+	char payload[60]{0};
+	payload[0] = 0xEF;
+	payload[1] = 0xFE;
+	payload[2] = 0x02;
+	payload[3] = 0x00;
+
+	if (send(data_socket, payload, 60, 0) < 0)
+	{
+		SoapySDR_log(SOAPY_SDR_ERROR, "SoapyHPSDR::SoapyHPSDR Error sending data");
+		close(data_socket);
+		return;
+	}
+	
+	for (int i = 0; i < 1000; i++)
+	{
+		usleep(1000);
+	}
+	SoapySDR_log(SOAPY_SDR_INFO, "Send discovery");
 }
 
 void SoapyHPSDR::startDataStream(void)
@@ -309,7 +309,7 @@ SoapySDR::RangeList SoapyHPSDR::getFrequencyRange( const int direction, const si
 	
 	SoapySDR::RangeList rangeList;
 	
-	rangeList.push_back(SoapySDR::Range(10000.0, 30000000.0, 1.0));
+	rangeList.push_back(SoapySDR::Range(10000.0, 60000000.0, 1.0));
 	
 	return rangeList;
 }
@@ -457,13 +457,6 @@ SoapySDR::ArgInfoList SoapyHPSDR::getSettingInfo() const
 	SoapySDR::ArgInfoList args;
 	SoapySDR::ArgInfo arg;
 
-	arg.key = "PowerAmp";
-	arg.name = "Power Amplifier";
-	arg.type = SoapySDR::ArgInfo::STRING;
-	arg.options = {"Operate", "Standby"};
-	arg.optionNames = {"Amplifier Status"};
-
-	args.push_back(arg);
 	return args;
 }
 

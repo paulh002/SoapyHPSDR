@@ -6,19 +6,27 @@
 #include <arpa/inet.h>
 #include <cstring>
 
-std::thread rx_thread;
-std::shared_ptr<ReceiveThread> ptr_rx_thread;
+std::thread receive_thread;
+std::shared_ptr<ReceiveThread> ptr_receive_thread;
 
 const int buffer_size = 65536;
 
 bool ReceiveThread::create_receive_thread(int receive_socket, SoapyHPSDR *device)
 {
-	if (ptr_rx_thread != nullptr)
+	if (ptr_receive_thread != nullptr)
 		return false;
-
-	ptr_rx_thread = std::make_shared<ReceiveThread>(receive_socket, device);
-	rx_thread = std::thread(&ReceiveThread::operator(), ptr_rx_thread);
+	ptr_receive_thread = std::make_shared<ReceiveThread>(receive_socket, device);
+	receive_thread = std::thread(&ReceiveThread::operator(), ptr_receive_thread);
 	return true;
+}
+
+void ReceiveThread::destroy_receive_thread()
+{
+	if (ptr_receive_thread == nullptr)
+		return;
+	ptr_receive_thread->stop_flag = true;
+	receive_thread.join();
+	ptr_receive_thread.reset();
 }
 
 ReceiveThread::ReceiveThread(int receive_socket, SoapyHPSDR *_device)
@@ -47,36 +55,38 @@ void ReceiveThread::operator()()
 	bytes_received = recv(_receive_socket, buffer, buffer_size - 1, 0);
 	printf("Bytes received %d\n", bytes_received);
 	HPSDR_Device_Info device_info;
-	if (validate_hpsdr_response(buffer, bytes_received, &device_info))
+	while (!stop_flag)
 	{
-		num_hpsdr_receivers = 1;
-		while (1)
+		if (validate_hpsdr_response(buffer, bytes_received, &device_info))
 		{
-			std::chrono::time_point<std::chrono::high_resolution_clock> stoptReadTime;
-			std::chrono::microseconds timePassed{};
-						
-			const auto startTime = std::chrono::high_resolution_clock::now();
-
-			bytes_received = recv(_receive_socket, buffer, sizeof(buffer) - 1, MSG_WAITALL);
-			sequence = ((buffer[4] & 0xFF) << 24) + ((buffer[5] & 0xFF) << 16) + ((buffer[6] & 0xFF) << 8) + (buffer[7] & 0xFF);
-
-			if (sequence != 0 && sequence != last_seq_num + 1)
+			num_hpsdr_receivers = 1;
+			while (!stop_flag)
 			{
-				char str[180];
-				sprintf(str, "SoapyHPSDR::SoapyHPSDR Sequence error got %d expect %d", sequence, last_seq_num + 1);
-				SoapySDR_log(SOAPY_SDR_ERROR, str);
-			}
-			last_seq_num = sequence;
-			stoptReadTime = std::chrono::high_resolution_clock::now();
-			timePassed = std::chrono::duration_cast<std::chrono::microseconds>(stoptReadTime - startTime);
+				std::chrono::time_point<std::chrono::high_resolution_clock> stoptReadTime;
+				std::chrono::microseconds timePassed{};
 
+				const auto startTime = std::chrono::high_resolution_clock::now();
 
-			if (stream_active && bytes_received == PACKETSIZE)
-			{
-				if ((buffer[3] & 0xFF) == 6)
+				bytes_received = recv(_receive_socket, buffer, sizeof(buffer) - 1, MSG_WAITALL);
+				sequence = ((buffer[4] & 0xFF) << 24) + ((buffer[5] & 0xFF) << 16) + ((buffer[6] & 0xFF) << 8) + (buffer[7] & 0xFF);
+
+				if (sequence != 0 && sequence != last_seq_num + 1)
 				{
-					process_input_buffer(&buffer[8]);
-					process_input_buffer(&buffer[520]);
+					char str[180];
+					sprintf(str, "SoapyHPSDR::SoapyHPSDR Sequence error got %d expect %d", sequence, last_seq_num + 1);
+					SoapySDR_log(SOAPY_SDR_ERROR, str);
+				}
+				last_seq_num = sequence;
+				stoptReadTime = std::chrono::high_resolution_clock::now();
+				timePassed = std::chrono::duration_cast<std::chrono::microseconds>(stoptReadTime - startTime);
+
+				if (stream_active && bytes_received == PACKETSIZE)
+				{
+					if ((buffer[3] & 0xFF) == 6)
+					{
+						process_input_buffer(&buffer[8]);
+						process_input_buffer(&buffer[520]);
+					}
 				}
 			}
 		}
