@@ -17,6 +17,7 @@
 #include <atomic>
 #include <complex>
 #include <array>
+#include <span>
 
 #define TX_MAX 4800
 #define TX_MAX_BUFFER (TX_MAX * 8)
@@ -190,6 +191,6 @@ class SoapyHPSDR : public SoapySDR::Device
 	void SendDiscovery(void);
 	void startDataStream(void);
 	void stopDataStream(void);
-	int transmit_buffer(std::vector<char> &databuffer, char command, double samplerate);
+	int transmit_buffer(std::span<char> databuffer, char command, double samplerate);
 	char EncodeSampleRate(double sample_rate);
 };

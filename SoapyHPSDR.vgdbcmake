@@ -14,7 +14,7 @@
     <MainSourceTransferCommand>
       <SkipWhenRunningCommandList>false</SkipWhenRunningCommandList>
       <RemoteHost>
-        <HostName>192.168.88.62</HostName>
+        <HostName>192.168.88.17</HostName>
         <Transport>SSH</Transport>
         <UserName>pi</UserName>
       </RemoteHost>
@@ -35,11 +35,15 @@
         <string>CMakeLists.txt</string>
         <string>*.cmake</string>
       </FileMasks>
-      <TransferNewFilesOnly>true</TransferNewFilesOnly>
+      <TransferNewFilesOnly>false</TransferNewFilesOnly>
       <IncludeSubdirectories>true</IncludeSubdirectories>
-      <SelectedDirectories />
       <DeleteDisappearedFiles>true</DeleteDisappearedFiles>
       <ApplyGlobalExclusionList>true</ApplyGlobalExclusionList>
+      <Extension>
+        <Direction>Outgoing</Direction>
+        <SkipMountPoints>false</SkipMountPoints>
+        <OverwriteTrigger>Always</OverwriteTrigger>
+      </Extension>
     </MainSourceTransferCommand>
     <AllowChangingHostForMainCommands>false</AllowChangingHostForMainCommands>
     <SkipBuildIfNoSourceFilesChanged>false</SkipBuildIfNoSourceFilesChanged>

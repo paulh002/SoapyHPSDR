@@ -69,7 +69,13 @@ void ReceiveThread::operator()()
 
 				bytes_received = recv(_receive_socket, buffer, sizeof(buffer) - 1, MSG_WAITALL);
 				sequence = ((buffer[4] & 0xFF) << 24) + ((buffer[5] & 0xFF) << 16) + ((buffer[6] & 0xFF) << 8) + (buffer[7] & 0xFF);
-
+				
+				if (bytes_received < 0)
+				{
+					usleep(1000);
+					continue;
+				}
+					
 				if (sequence != 0 && sequence != last_seq_num + 1)
 				{
 					char str[180];
