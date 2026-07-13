@@ -59,6 +59,7 @@ void SoapyHPSDR::setSampleRate(const int direction, const size_t channel, const 
 	{
 		command = 0x00;
 		rx_samplerate = rate;
+		sync_divider = std::max(1, static_cast<int>(rate / 24000.0));
 	}
 	transmit_buffer(packet, command, rate);
 }
@@ -203,6 +204,10 @@ void SoapyHPSDR::closeStream(SoapySDR::Stream *stream)
 void SoapyHPSDR::push_iqsamples(std::vector<std::complex<float>> iqsamples)
 {
 	rx_databuffer.push(std::move(iqsamples));
+	if (rx_frame_counter.fetch_add(1, std::memory_order_relaxed) % sync_divider == 0) 
+	{
+		tx_sync_sem.release(); // C++20: Increment semaphore counter
+	}
 }
 
 int SoapyHPSDR::readStream(
@@ -239,8 +244,6 @@ int SoapyHPSDR::readStream(
 	return (npackages * 63); //return the number of IQ samples
 }
 
-auto timeLastMeasure = std::chrono::high_resolution_clock::now();
-
 int SoapyHPSDR::writeStream(SoapySDR::Stream *stream, const void * const *buffs, const size_t numElems, int &flags, const long long timeNs, const long timeoutUs)
 {
 	int iq = 0; 
@@ -249,11 +252,6 @@ int SoapyHPSDR::writeStream(SoapySDR::Stream *stream, const void * const *buffs,
 	void const		*buff_base = buffs[0];
 	float			*target_buffer = (float *) buff_base;
 	sdr_stream *ptr = (sdr_stream *)stream;
-	
-	//const auto now = std::chrono::high_resolution_clock::now();
-	//const auto timePassed1 = std::chrono::duration_cast<std::chrono::microseconds>(now - timeLastMeasure);
-	//timeLastMeasure = now;
-	//printf("Time measure %ld us send %ld\n", timePassed1.count(), numElems);
 	
 	// LEFT_SAMPLE_HI, LEFT_SAMPLE_MID, LEFT_SAMPLE_LOW, RIGHT_SAMPLE_HI, RIGHT_SAMPLE_MID, RIGHT_SAMPLE_LOW, MIC_SAMPLE_HI, MIC_SAMPLE_LOW
 	if (ptr->get_stream_format() == HPSDR_SDR_CF32)
@@ -277,7 +275,8 @@ int SoapyHPSDR::writeStream(SoapySDR::Stream *stream, const void * const *buffs,
 			if (ibuf == PACKETSIZE)
 			{
 				ibuf = 16;
-				transmit_buffer(tx_databuffer, 0x01, tx_samplerate);	
+				transmit_buffer(tx_databuffer, 0x01, tx_samplerate);
+				usleep(100);
 			}
 			iq++;
 			iq++;
@@ -289,22 +288,26 @@ int SoapyHPSDR::writeStream(SoapySDR::Stream *stream, const void * const *buffs,
 
 int SoapyHPSDR::transmit_buffer(std::span<char> databuffer, char command, double samplerate)
 {
+	
+	// Blocks until the RX thread releases the semaphore, or 10ms passes.
+	if (!tx_sync_sem.try_acquire_for(std::chrono::milliseconds(10))) 
+	{
+		SoapySDR_log(SOAPY_SDR_WARNING, "TX sync timeout: RX stream might be stalled.");
+	}
+	
 	databuffer[HEADER1] = 0xEF; // Sync 1
 	databuffer[HEADER2] = 0xFE; // Sync 2
 	databuffer[HEADER3] = 0x01; // Command Type: Control
 	databuffer[EP] = 0x02; // Command Type: Control
 	send_sequence++;
-	databuffer[4] = (send_sequence >> 24) & 0xFF;
-	databuffer[5] = (send_sequence >> 16) & 0xFF;
-	databuffer[6] = (send_sequence >> 8) & 0xFF;
-	databuffer[7] = (send_sequence) & 0xFF;
+	databuffer[SEQ1] = (send_sequence >> 24) & 0xFF;
+	databuffer[SEQ2] = (send_sequence >> 16) & 0xFF;
+	databuffer[SEQ3] = (send_sequence >> 8) & 0xFF;
+	databuffer[SEQ4] = (send_sequence) & 0xFF;
 	
 	databuffer[SYNC1] = 0x7F; // 
 	databuffer[SYNC2] = 0x7F; // 
 	databuffer[SYNC2] = 0x7F; // 
-	
-	//uint32_t net_sequence = htonl(send_sequence);
-	//std::memcpy(databuffer.data() + SEQ3, &net_sequence, sizeof(net_sequence));
 
 	databuffer[C0] = command;
 	databuffer[C1] = EncodeSampleRate(samplerate); //
@@ -322,7 +325,6 @@ int SoapyHPSDR::transmit_buffer(std::span<char> databuffer, char command, double
 	databuffer[C3 + 512] = 0x00;
 	databuffer[C4 + 512] = 0x04;
 
-	//const auto now1 = std::chrono::high_resolution_clock::now();
 	errno = 0; // Clear it right before the call!
 	ssize_t sent = send(data_socket, databuffer.data(), PACKETSIZE, 0);
 	if (sent < 0 || sent != PACKETSIZE)

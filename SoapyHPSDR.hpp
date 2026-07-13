@@ -18,6 +18,7 @@
 #include <complex>
 #include <array>
 #include <span>
+#include <semaphore>
 
 #define TX_MAX 4800
 #define TX_MAX_BUFFER (TX_MAX * 8)
@@ -52,7 +53,7 @@ class SoapyHPSDR : public SoapySDR::Device
   public:
 	SoapyHPSDR(const SoapySDR::Kwargs &args);
 	~SoapyHPSDR();
-
+	
 	/*******************************************************************
 	 * Identification API
 	 ******************************************************************/
@@ -187,7 +188,11 @@ class SoapyHPSDR : public SoapySDR::Device
 	uint32_t send_sequence;
 	uint32_t num_hpsdr_receivers;
 	int ibuf;
+	std::counting_semaphore<64> tx_sync_sem{0};
+	std::atomic<int> rx_frame_counter{0};
+	int sync_divider = 1;
 
+	
 	void SendDiscovery(void);
 	void startDataStream(void);
 	void stopDataStream(void);

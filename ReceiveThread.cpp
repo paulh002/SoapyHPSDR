@@ -1,10 +1,12 @@
 #include "ReceiveThread.hpp"
 #include "DataBuffer.h"
+#include "SoapyHPSDR.hpp"
 #include <sys/socket.h>
 #include <sys/time.h> // For struct timeval (timeout)
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <cstring>
+
 
 std::thread receive_thread;
 std::shared_ptr<ReceiveThread> ptr_receive_thread;

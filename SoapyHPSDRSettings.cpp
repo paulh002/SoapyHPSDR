@@ -40,7 +40,7 @@ SoapyHPSDR::SoapyHPSDR(const SoapySDR::Kwargs &args)
 	num_hpsdr_receivers = 1;
 	rx_frequency = 7074000;
 	tx_databuffer.resize(PACKETSIZE);
-
+	
 	if (args.count("addr"))
 		_addr = args.at("addr");
 	if (args.count("port"))
@@ -115,6 +115,7 @@ SoapyHPSDR::~SoapyHPSDR(void)
 	ReceiveThread::destroy_receive_thread();
 	if (data_socket != 0)
 		close(data_socket);
+
 	//printf("databuffer size %d\n", databuffer.size());
 }
 
