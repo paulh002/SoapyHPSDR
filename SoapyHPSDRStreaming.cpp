@@ -73,7 +73,7 @@ char SoapyHPSDR::EncodeSampleRate(double sample_rate)
 	}
 	if (sample_rate > 48000.0 && sample_rate < 96001.0)
 	{
-		c = 0x00;;
+		c = 0x01;
 	}
 	if (sample_rate > 96000.0 && sample_rate < 192001.0)
 	{
