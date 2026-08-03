@@ -157,11 +157,11 @@ SoapySDR::Stream *SoapyHPSDR::setupStream(
 	{
 		ibuf = 16; // skip header
 		send_sequence = 0;
+		mox = true;
 	}
 	if (format == SOAPY_SDR_CF32) {
 		SoapySDR_log(SOAPY_SDR_INFO, "Using format CF32.");
 		ptr->set_stream_format(HPSDR_SDR_CF32);
-		mox = true;
 	}
 	else
 	{
