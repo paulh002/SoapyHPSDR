@@ -374,7 +374,10 @@ void SoapyHPSDR::setGain( const int direction, const size_t channel, const doubl
 		if (value < 0.0)
 			command_data = 0;
 		command_data = command_data << 28;
-		command = 0x13;
+		if (mox)
+			command = 0x13;
+		else
+			command = 0x12;				
 		this->SoapyHPSDR::controlHPSDR(command, command_data);
 	}
 	
@@ -407,9 +410,7 @@ void SoapyHPSDR::setFrequency( const int direction, const size_t channel,  const
 	}
 
 	uint32_t command_data = frequency;
-
-	//if (!mox)
-		this->SoapyHPSDR::controlHPSDR(command, command_data);
+	this->SoapyHPSDR::controlHPSDR(command, command_data);
 }
 
 void SoapyHPSDR::writeI2C(const int addr, const std::string &data)
