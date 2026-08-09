@@ -394,10 +394,7 @@ void SoapyHPSDR::setFrequency( const int direction, const size_t channel,  const
 
 	if (direction == SOAPY_SDR_RX)
 	{
-		if (mox)
-			command = 5;
-		else
-			command = 4;
+		command = 4;
 		rx_frequency = frequency;
 	}
 
