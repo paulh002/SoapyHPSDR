@@ -22,7 +22,7 @@
 #define RADIOBERRY_BUFFER_SIZE	4096	
 
 const cfg::File::ConfigMap defaultOptions = {
-	{"hpsdr", {{"samplerate", cfg::makeOption("122.88")}}}
+	{ "hpsdr", { { "samplerate", cfg::makeOption("122.88") } } }
 };
 
 int SoapyHPSDR::get_int(std::string section, std::string key)
@@ -50,8 +50,9 @@ std::string SoapyHPSDR::get_string(std::string section, std::string key)
  **********************************************************************/
 
 SoapyHPSDR::SoapyHPSDR(const SoapySDR::Kwargs &args)
-	: _addr("192.168.88.24"), _port(1024)
-	{
+	: _addr("192.168.88.24")
+	, _port(1024)
+{
 	char message[180];
 		
 	SoapySDR_setLogLevel(SOAPY_SDR_INFO);
@@ -64,10 +65,14 @@ SoapyHPSDR::SoapyHPSDR(const SoapySDR::Kwargs &args)
 	}
 	samplerate_125 = false;	
 	if (get_string("hpsdr", "samplerate") == "125")
-		{
-			SoapySDR_log(SOAPY_SDR_INFO,"sample rate set to 125 Mhz");
-			samplerate_125 = true;			
-		}
+	{
+		SoapySDR_log(SOAPY_SDR_INFO, "sample rate set to 125 Mhz");
+		samplerate_125 = true;			
+	}
+	else
+	{
+		SoapySDR_log(SOAPY_SDR_INFO, "sample rate set to 122.88 Mhz");				
+	}
 	mox = false;
 	no_channels = 1;
 	data_socket = -1;
@@ -137,7 +142,7 @@ SoapyHPSDR::SoapyHPSDR(const SoapySDR::Kwargs &args)
 
 	ReceiveThread::create_receive_thread(data_socket, this);
 	SendDiscovery();
-	for(int i = 0; i < 1000; i++)
+	for (int i = 0; i < 1000; i++)
 	{
 		usleep(1000);
 	}
@@ -147,7 +152,7 @@ SoapyHPSDR::~SoapyHPSDR(void)
 {
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::SoapyHPSDR  destructor called");
 	for (auto con : streams)
-		delete (con);
+		delete(con);
 	ReceiveThread::destroy_receive_thread();
 	if (data_socket != 0)
 		close(data_socket);
@@ -199,7 +204,8 @@ void SoapyHPSDR::controlHPSDR(uint32_t command, uint32_t command_data) {
 void SoapyHPSDR::SendDiscovery(void)
 {
 	// Discovery
-	char payload[60]{0};
+	char payload[60]{0}
+	;
 	payload[0] = 0xEF;
 	payload[1] = 0xFE;
 	payload[2] = 0x02;
@@ -222,7 +228,8 @@ void SoapyHPSDR::SendDiscovery(void)
 void SoapyHPSDR::startDataStream(void)
 { 
 	// start receiver
-	char payload[64]{0};
+	char payload[64]{0}
+	;
 	payload[0] = 0xEF;
 	payload[1] = 0xFE;
 	payload[2] = 0x04;
@@ -237,7 +244,8 @@ void SoapyHPSDR::startDataStream(void)
 void SoapyHPSDR::stopDataStream(void)
 {
 	// start receiver
-	char payload[64]{0};
+	char payload[64]{0}
+	;
 	payload[0] = 0xEF;
 	payload[1] = 0xFE;
 	payload[2] = 0x04;
@@ -249,56 +257,57 @@ void SoapyHPSDR::stopDataStream(void)
 	}
 }
 
-std::string SoapyHPSDR::getDriverKey( void ) const
+std::string SoapyHPSDR::getDriverKey(void) const
 {
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::getDriverKey called");
 	
 	return "hpsdr";
 }
 
-std::string SoapyHPSDR::getHardwareKey( void ) const
+std::string SoapyHPSDR::getHardwareKey(void) const
 {
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::getHardwareKey called");
 
 	return "hpsdr v0.1";
 }
 
-SoapySDR::Kwargs SoapyHPSDR::getHardwareInfo( void ) const
+SoapySDR::Kwargs SoapyHPSDR::getHardwareInfo(void) const
 {
 	
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::getHardwareInfo called");
 
-	SoapySDR::Kwargs info{};
+	SoapySDR::Kwargs info {}
+	;
 
 	return info;
 }
 
-size_t SoapyHPSDR::getNumChannels( const int direction ) const
+size_t SoapyHPSDR::getNumChannels(const int direction) const
 {
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::getNumChannels called");
 	
 	//if (direction == SOAPY_SDR_RX) return(4);
 	
-	return(1); //1 RX and 1 TX channel; making this for standalone radioberry!
+	return (1); //1 RX and 1 TX channel; making this for standalone radioberry!
 }
 
-bool SoapyHPSDR::getFullDuplex( const int direction, const size_t channel ) const
+bool SoapyHPSDR::getFullDuplex(const int direction, const size_t channel) const
 {
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::getFullDuplex called");
 	
-	return(true);
+	return (true);
 }
 
-std::vector<double> SoapyHPSDR::listBandwidths( const int direction, const size_t channel ) const
+std::vector<double> SoapyHPSDR::listBandwidths(const int direction, const size_t channel) const
 {
 	// radioberry does nor support bandwidth
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::listBandwidths called");
 		
 	std::vector<double> options;
-	return(options);
+	return (options);
 }
 
-std::vector<double> SoapyHPSDR::listSampleRates( const int direction, const size_t channel ) const
+std::vector<double> SoapyHPSDR::listSampleRates(const int direction, const size_t channel) const
 {
 	
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::listSampleRates called");
@@ -327,30 +336,30 @@ std::vector<double> SoapyHPSDR::listSampleRates( const int direction, const size
 			options.push_back(0.048e6);
 		}
 	}
-	return(options);
+	return (options);
 }
 
-double SoapyHPSDR::getBandwidth( const int direction, const size_t channel ) const
+double SoapyHPSDR::getBandwidth(const int direction, const size_t channel) const
 {
 	
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::getBandwidth called");
 	
-    long long bandwidth = 48000.0;
+	long long bandwidth = 48000.0;
 
-	if(direction==SOAPY_SDR_RX){
+	if (direction == SOAPY_SDR_RX) {
       
-	  //depends on settings.. TODO
+		//depends on settings.. TODO
 
 	}
 
-	else if(direction==SOAPY_SDR_TX){
-       bandwidth = 48000.0;
+	else if (direction == SOAPY_SDR_TX) {
+		bandwidth = 48000.0;
 	}
 
 	return double(bandwidth);
 }
 
-SoapySDR::RangeList SoapyHPSDR::getFrequencyRange( const int direction, const size_t channel)  const
+SoapySDR::RangeList SoapyHPSDR::getFrequencyRange(const int direction, const size_t channel)  const
 {
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::getFrequencyRange called");
 	
@@ -361,15 +370,15 @@ SoapySDR::RangeList SoapyHPSDR::getFrequencyRange( const int direction, const si
 	return rangeList;
 }
 
-std::vector<std::string> SoapyHPSDR::listAntennas( const int direction, const size_t channel ) const
+std::vector<std::string> SoapyHPSDR::listAntennas(const int direction, const size_t channel) const
 {
 	
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::listAntennas called");
 	
 	std::vector<std::string> options;
-	if(direction == SOAPY_SDR_RX) options.push_back( "ANTENNA RX" );
-	if(direction == SOAPY_SDR_TX) options.push_back( "ANTENNA TX" );
-	return(options);
+	if (direction == SOAPY_SDR_RX) options.push_back("ANTENNA RX");
+	if (direction == SOAPY_SDR_TX) options.push_back("ANTENNA TX");
+	return (options);
 }
 
 
@@ -377,25 +386,25 @@ std::vector<std::string> SoapyHPSDR::listAntennas( const int direction, const si
  * Gain API
  ******************************************************************/
 
-std::vector<std::string> SoapyHPSDR::listGains( const int direction, const size_t channel ) const
+std::vector<std::string> SoapyHPSDR::listGains(const int direction, const size_t channel) const
 {
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::listGains called");
 	
 	std::vector<std::string> options;
 	//options.push_back("PGA"); //in pihpsdr no additional gain settings.
-	return(options);
+	return (options);
 }
 
-SoapySDR::Range SoapyHPSDR::getGainRange( const int direction, const size_t channel) const
+SoapySDR::Range SoapyHPSDR::getGainRange(const int direction, const size_t channel) const
 {
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::getGainRange called");
 	
-	if(direction==SOAPY_SDR_RX)
-		return(SoapySDR::Range(-12, 48));
-	return(SoapySDR::Range(0,15));
+	if (direction == SOAPY_SDR_RX)
+		return (SoapySDR::Range(-12, 48));
+	return (SoapySDR::Range(0, 15));
 }
 
-void SoapyHPSDR::setGain( const int direction, const size_t channel, const double value ) {
+void SoapyHPSDR::setGain(const int direction, const size_t channel, const double value) {
 	
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::setGain called");
 	
@@ -407,12 +416,13 @@ void SoapyHPSDR::setGain( const int direction, const size_t channel, const doubl
 		if (mox)
 			command = 0x15;
 		else
-			command = 0x14;//14
+			command = 0x14; //14
 		command_data = (0x40 | (((uint32_t)value + 12) & 0x3F));
 	}
 	
-	if(direction==SOAPY_SDR_TX) 
-	{ // 0 -7 TX RF gain
+	if (direction == SOAPY_SDR_TX) 
+	{
+		// 0 -7 TX RF gain
 		drive = value;
 		command_data = (uint32_t)value;
 		if (value > 15)
@@ -432,7 +442,7 @@ void SoapyHPSDR::setGain( const int direction, const size_t channel, const doubl
 /*******************************************************************
  * Frequency API 
  ******************************************************************/
-void SoapyHPSDR::setFrequency( const int direction, const size_t channel,  const double frequency, const SoapySDR::Kwargs &args ) {
+void SoapyHPSDR::setFrequency(const int direction, const size_t channel, const double frequency, const SoapySDR::Kwargs &args) {
 	
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::setFrequency called");
 	
