@@ -19,7 +19,6 @@
 #include <span>
 #include <semaphore>
 
-#include "configfile.h"
 #include "DataBuffer.h"
 
 #define TX_MAX 4800
@@ -183,7 +182,6 @@ class SoapyHPSDR : public SoapySDR::Device
 	bool i2c_available;
 	bool mox;
 	bool poweramp_operational;
-	bool samplerate_125;
 	uint32_t drive;
 	std::atomic<uint32_t> sequence;
 	DataBuffer<std::complex<float>> rx_databuffer;
@@ -194,15 +192,11 @@ class SoapyHPSDR : public SoapySDR::Device
 	std::counting_semaphore<64> tx_sync_sem{0};
 	std::atomic<int> rx_frame_counter{0};
 	int sync_divider = 1;
-	std::unique_ptr<cfg::File> configfile;
 
-	
 	void SendDiscovery(void);
 	void startDataStream(void);
 	void stopDataStream(void);
 	int transmit_buffer(std::span<char> databuffer, char command, double samplerate);
 	char EncodeSampleRate(double sample_rate);
-	
-	int get_int(std::string section, std::string key);
-	std::string get_string(std::string section, std::string key);
+
 };

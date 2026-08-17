@@ -67,43 +67,22 @@ void SoapyHPSDR::setSampleRate(const int direction, const size_t channel, const 
 char SoapyHPSDR::EncodeSampleRate(double sample_rate)
 {
 	char c = 0x00;
-	if (samplerate_125)
+
+	if (sample_rate < 48001.0)
 	{
-		if (sample_rate < 62501.0)
-		{
-			c = 0x00;
-		}
-		if (sample_rate > 62500.0 && sample_rate < 125001.0)
-		{
-			c = 0x01;
-		}
-		if (sample_rate > 125000.0 && sample_rate < 500001.0)
-		{
-			c = 0x02;
-		}
-		if (sample_rate > 500000.0)
-		{
-			c = 0x03;
-		}	
+		c = 0x00;
 	}
-	else
+	if (sample_rate > 48000.0 && sample_rate < 96001.0)
 	{
-		if (sample_rate < 48001.0)
-		{
-			c = 0x00;
-		}
-		if (sample_rate > 48000.0 && sample_rate < 96001.0)
-		{
-			c = 0x01;
-		}
-		if (sample_rate > 96000.0 && sample_rate < 192001.0)
-		{
-			c = 0x02;
-		}
-		if (sample_rate > 192000.0)
-		{
-			c = 0x03;
-		}
+		c = 0x01;
+	}
+	if (sample_rate > 96000.0 && sample_rate < 192001.0)
+	{
+		c = 0x02;
+	}
+	if (sample_rate > 192000.0)
+	{
+		c = 0x03;
 	}
 	return c;
 }
