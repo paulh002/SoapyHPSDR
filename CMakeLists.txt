@@ -40,5 +40,11 @@ SOAPY_SDR_MODULE_UTIL(
     ReceiveThread.cpp
     ReceiveThread.hpp
     DataBuffer.h
+    configfile.cpp
+    configoption.cpp
+    configfile.h
+    configoption.h
+    strlib.h
+    strlib.cpp
 )
 #LIBRARIES ${MY_DEVICE_LIBRARIES}

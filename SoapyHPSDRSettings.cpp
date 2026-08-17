@@ -21,6 +21,30 @@
 
 #define RADIOBERRY_BUFFER_SIZE	4096	
 
+const cfg::File::ConfigMap defaultOptions = {
+	{"hpsdr", {{"samplerate", cfg::makeOption("122.88")}}}
+};
+
+int SoapyHPSDR::get_int(std::string section, std::string key)
+{
+	auto option = configfile->getSection(section);
+	auto s = option.find(key);
+	if (s == option.end())
+		return 0;
+	std::string st = s->second;
+	return atoi((const char *)st.c_str());
+}
+
+std::string SoapyHPSDR::get_string(std::string section, std::string key)
+{
+	std::string st;
+	auto option = configfile->getSection(section);
+	auto s = option.find(key);
+	if (s != option.end())
+		st = s->second;
+	return st;
+}
+
 /***********************************************************************
  * Device interface
  **********************************************************************/
@@ -32,6 +56,18 @@ SoapyHPSDR::SoapyHPSDR(const SoapySDR::Kwargs &args)
 		
 	SoapySDR_setLogLevel(SOAPY_SDR_INFO);
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::SoapyHPSDR  constructor called");
+	configfile = std::make_unique<cfg::File>();
+	if (!configfile->loadFromFile("hpsdr.cfg"))
+	{
+		configfile->setDefaultOptions(defaultOptions);
+		configfile->writeToFile("hpsdr.cfg");
+	}
+	samplerate_125 = false;	
+	if (get_string("hpsdr", "samplerate") == "125")
+		{
+			SoapySDR_log(SOAPY_SDR_INFO,"sample rate set to 125 Mhz");
+			samplerate_125 = true;			
+		}
 	mox = false;
 	no_channels = 1;
 	data_socket = -1;
@@ -266,20 +302,30 @@ std::vector<double> SoapyHPSDR::listSampleRates( const int direction, const size
 {
 	
 	SoapySDR_log(SOAPY_SDR_INFO, "SoapyHPSDR::listSampleRates called");
-	
-	
 	std::vector<double> options;
-	
-	if (direction == SOAPY_SDR_RX) {
-		options.push_back(0.048e6);  
-		options.push_back(0.096e6);
-		options.push_back(0.192e6);
-		options.push_back(0.384e6);
-		//options.push_back(0.768e6);
-		//options.push_back(1.536e6);
+	if (samplerate_125)
+	{
+		if (direction == SOAPY_SDR_RX) {
+			options.push_back(0.0625e6);  
+			options.push_back(0.125e6);
+			options.push_back(0.250e6);
+			options.push_back(0.500e6);
+		}
+		if (direction == SOAPY_SDR_TX) {
+			options.push_back(0.0625e6);
+		}	
 	}
-	if (direction == SOAPY_SDR_TX) {
-		options.push_back(0.048e6);
+	else
+	{
+		if (direction == SOAPY_SDR_RX) {
+			options.push_back(0.048e6);  
+			options.push_back(0.096e6);
+			options.push_back(0.192e6);
+			options.push_back(0.384e6);
+		}
+		if (direction == SOAPY_SDR_TX) {
+			options.push_back(0.048e6);
+		}
 	}
 	return(options);
 }

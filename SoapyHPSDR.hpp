@@ -2,8 +2,6 @@
 #include <SoapySDR/Device.hpp>
 #include <SoapySDR/Formats.hpp>
 #include <SoapySDR/Logger.hpp>
-#include "DataBuffer.h"
-
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -13,12 +11,16 @@
 #include <memory>
 #include <string.h>
 #include <mutex>
+#include <memory>
 #include <cstring>
 #include <atomic>
 #include <complex>
 #include <array>
 #include <span>
 #include <semaphore>
+
+#include "configfile.h"
+#include "DataBuffer.h"
 
 #define TX_MAX 4800
 #define TX_MAX_BUFFER (TX_MAX * 8)
@@ -181,6 +183,7 @@ class SoapyHPSDR : public SoapySDR::Device
 	bool i2c_available;
 	bool mox;
 	bool poweramp_operational;
+	bool samplerate_125;
 	uint32_t drive;
 	std::atomic<uint32_t> sequence;
 	DataBuffer<std::complex<float>> rx_databuffer;
@@ -191,6 +194,7 @@ class SoapyHPSDR : public SoapySDR::Device
 	std::counting_semaphore<64> tx_sync_sem{0};
 	std::atomic<int> rx_frame_counter{0};
 	int sync_divider = 1;
+	std::unique_ptr<cfg::File> configfile;
 
 	
 	void SendDiscovery(void);
@@ -198,4 +202,7 @@ class SoapyHPSDR : public SoapySDR::Device
 	void stopDataStream(void);
 	int transmit_buffer(std::span<char> databuffer, char command, double samplerate);
 	char EncodeSampleRate(double sample_rate);
+	
+	int get_int(std::string section, std::string key);
+	std::string get_string(std::string section, std::string key);
 };
